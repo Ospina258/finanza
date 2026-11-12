@@ -1,0 +1,6 @@
+{
+  "name": "Finzen",
+  "description": "Gestor financiero inteligente con presupuesto diario dinámico, metas de ahorro, control de deudas y analíticas avanzadas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- Meta tags para evitar caché agresiva y mejorar PWA -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a"> <!-- Color oscuro para la barra de estado -->
+    <title>Finzen - Gestor Financiero</title>
+    
+    <!-- Manifest para PWA -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { 
+            darkMode: 'class', 
+            theme: { 
+                extend: { 
+                    colors: { brand: '#6366f1', brandDark: '#4f46e5' }, 
+                    fontFamily: { sans: ['Inter', 'sans-serif'] } 
+                } 
+            } 
+        }
+    </script>
+    
+    <!-- Iconos, Alertas y Gráficos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; padding-bottom: 90px; }
+        /* Estilo Glassmorphism fijado en oscuro */
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .fab { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 50; box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.6); }
+        .nav-item { transition: all 0.2s; }
+        .nav-item.active { color: #818cf8; transform: translateY(-2px); }
+        input, select { font-size: 16px !important; }
+        
+        /* Ajustes para SweetAlert2 en modo oscuro nativo */
+        .swal2-popup { background: #1e293b !important; color: #f8fafc !important; }
+        .swal2-title, .swal2-html-container { color: #f8fafc !important; }
+        .swal2-input, .swal2-select { background: #0f172a !important; color: white !important; border-color: #334155 !important; }
+    </style>
+</head>
+<body class="bg-slate-900 text-gray-100 min-h-screen">
+
+    <!-- HEADER -->
+    <header class="px-5 pt-6 pb-4 flex justify-between items-center">
+        <div>
+            <p class="text-sm text-gray-400">Hola,</p>
+            <h1 class="text-2xl font-extrabold tracking-tight text-white">Tus Finanzas</h1>
+        </div>
+        <!-- El botón de tema fue eliminado -->
+    </header>
+
+    <main class="px-5 max-w-lg mx-auto">
+        
+        <!-- SECCIÓN: INICIO (DASHBOARD) -->
+        <section id="view-inicio" class="block animate-fade-in">
+            <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-6 text-white shadow-xl shadow-indigo-500/20 mb-6 relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
+                <p class="text-indigo-100 text-sm font-medium">Límite de gasto para hoy</p>
+                <h2 class="text-4xl font-extrabold mt-1 mb-2" id="lblLimiteDiario">$0</h2>
+                <div class="w-full bg-black/30 rounded-full h-2 mb-2">
+                    <div id="barraProgreso" class="bg-white h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <p id="lblEstadoLimite" class="text-xs text-indigo-100 font-medium">Calculando...</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="glass rounded-2xl p-4 flex flex-col justify-between">
+                    <div class="flex items-center gap-2 mb-2 text-emerald-400">
+                        <i class="fas fa-arrow-down"></i> <span class="text-xs font-bold uppercase">Ingresos</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white" id="resumenIngresos">$0</h3>
+                </div>
+                <div class="glass rounded-2xl p-4 flex flex-col justify-between">
+                    <div class="flex items-center gap-2 mb-2 text-rose-400">
+                        <i class="fas fa-arrow-up"></i> <span class="text-xs font-bold uppercase">Gastos</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white" id="resumenGastos">$0</h3>
+                </div>
+            </div>
+
+            <div class="glass rounded-2xl p-4 mb-4">
+                <h3 class="text-sm font-bold text-gray-300 mb-2">Distribución de Gastos</h3>
+                <div class="h-48 relative flex justify-center">
+                    <canvas id="chartGastos"></canvas>
+                    <div id="noDataChart" class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm hidden">Sin gastos este mes</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN: HISTORIAL -->
+        <section id="view-historial" class="hidden animate-fade-in">
+            <h2 class="text-xl font-bold mb-4 text-white">Historial</h2>
+            <div class="flex gap-2 mb-4 overflow-x-auto hide-scrollbar">
+                <button onclick="filtrarHistorial('todos')" class="filtro-btn px-4 py-1.5 rounded-full text-sm font-semibold bg-brand text-white">Todos</button>
+                <button onclick="filtrarHistorial('gasto')" class="filtro-btn px-4 py-1.5 rounded-full text-sm font-semibold glass text-gray-300">Gastos</button>
+                <button onclick="filtrarHistorial('ingreso')" class="filtro-btn px-4 py-1.5 rounded-full text-sm font-semibold glass text-gray-300">Ingresos</button>
+            </div>
+            <div id="listaHistorial" class="space-y-3"></div>
+        </section>
+
+        <!-- SECCIÓN: METAS Y PRÉSTAMOS -->
+        <section id="view-metas" class="hidden animate-fade-in">
+            <h2 class="text-xl font-bold mb-4 text-white">Mis Metas</h2>
+            <button onclick="abrirModalMeta()" class="w-full glass border-dashed border-2 border-brand/50 text-brand font-bold py-3 rounded-xl mb-4 hover:bg-brand hover:text-white transition">+ Nueva Meta de Ahorro</button>
+            <div id="listaMetas" class="space-y-3 mb-8"></div>
+
+            <h2 class="text-xl font-bold mb-4 text-white">Préstamos</h2>
+            <button onclick="abrirModalPrestamo()" class="w-full glass border-dashed border-2 border-orange-400/50 text-orange-400 font-bold py-3 rounded-xl mb-4 hover:bg-orange-500 hover:text-white transition">+ Registrar Préstamo</button>
+            <div id="listaPrestamos" class="space-y-3"></div>
+        </section>
+
+        <!-- SECCIÓN: AJUSTES / PRESUPUESTO -->
+        <section id="view-ajustes" class="hidden animate-fade-in">
+            <h2 class="text-xl font-bold mb-4 text-white">Ajustes Financieros</h2>
+            
+            <div class="glass rounded-2xl p-5 mb-4">
+                <h3 class="font-bold text-sm mb-3 text-white">Regla de Ahorro Automático</h3>
+                <p class="text-xs text-gray-400 mb-4">¿Qué porcentaje de tus ingresos quieres apartar antes de calcular tu límite diario?</p>
+                <div class="flex items-center gap-4">
+                    <input type="range" id="inputAhorroPct" min="0" max="50" step="5" value="10" class="w-full accent-brand" oninput="document.getElementById('lblPct').innerText = this.value + '%'">
+                    <span id="lblPct" class="font-bold text-brand text-lg">10%</span>
+                </div>
+                <button onclick="guardarAjustes()" class="mt-4 w-full bg-brand text-white py-2 rounded-lg text-sm font-bold">Guardar Cambios</button>
+            </div>
+
+            <div class="glass rounded-2xl p-5 mb-4 border border-indigo-500/30">
+                <h3 class="font-bold text-sm mb-1 text-indigo-400">Actualizaciones de la App</h3>
+                <p class="text-xs text-gray-400 mb-3">El sistema de caché se actualiza solo. Si acabo de subir una mejora, presiona aquí.</p>
+                <button onclick="forzarActualizacion()" class="w-full bg-indigo-900/50 text-indigo-300 py-2 rounded-lg text-sm font-bold"><i class="fas fa-sync-alt mr-2"></i>Buscar Actualización</button>
+            </div>
+
+            <div class="glass rounded-2xl p-5 mb-4">
+                <h3 class="font-bold text-sm mb-3 text-white">Respaldo de Datos</h3>
+                <div class="flex flex-col gap-2">
+                    <button onclick="exportarDatos()" class="w-full bg-slate-700 text-white py-2 rounded-lg text-sm font-bold"><i class="fas fa-download mr-2"></i>Exportar (Backup)</button>
+                    <button onclick="importarDatos()" class="w-full bg-slate-700 text-white py-2 rounded-lg text-sm font-bold"><i class="fas fa-upload mr-2"></i>Importar Backup</button>
+                </div>
+            </div>
+
+            <button onclick="borrarTodo()" class="w-full bg-red-900/30 text-red-400 py-3 rounded-xl text-sm font-bold"><i class="fas fa-trash mr-2"></i>Borrar todos los datos</button>
+        </section>
+
+    </main>
+
+    <!-- BOTÓN FLOTANTE (FAB) -->
+    <button onclick="abrirModalTransaccion()" class="fab w-16 h-16 bg-brand text-white rounded-full flex items-center justify-center text-2xl hover:scale-105 transition-transform">
+        <i class="fas fa-plus"></i>
+    </button>
+
+    <!-- NAVEGACIÓN INFERIOR -->
+    <nav class="fixed bottom-0 w-full glass border-t border-slate-800 flex justify-around pt-3 pb-6 px-2 z-40">
+        <div class="nav-item active flex flex-col items-center justify-center w-16 cursor-pointer text-gray-400" onclick="cambiarVista('inicio', this)">
+            <i class="fas fa-home text-xl mb-1"></i><span class="text-[10px] font-bold">Inicio</span>
+        </div>
+        <div class="nav-item flex flex-col items-center justify-center w-16 cursor-pointer text-gray-400" onclick="cambiarVista('historial', this)">
+            <i class="fas fa-list-ul text-xl mb-1"></i><span class="text-[10px] font-bold">Historial</span>
+        </div>
+        <div class="w-16"></div>
+        <div class="nav-item flex flex-col items-center justify-center w-16 cursor-pointer text-gray-400" onclick="cambiarVista('metas', this)">
+            <i class="fas fa-bullseye text-xl mb-1"></i><span class="text-[10px] font-bold">Metas</span>
+        </div>
+        <div class="nav-item flex flex-col items-center justify-center w-16 cursor-pointer text-gray-400" onclick="cambiarVista('ajustes', this)">
+            <i class="fas fa-cog text-xl mb-1"></i><span class="text-[10px] font-bold">Ajustes</span>
+        </div>
+    </nav>
+
+    <script>
+        // VERSIÓN ACTUAL DE LA APP
+        const APP_VERSION = "2.3-dark"; 
+
+        let data = JSON.parse(localStorage.getItem('finzenDataPro')) || {
+            transacciones: [], metas: [], prestamos: [], nextId: 1, nextIdPrestamo: 1, ahorroPct: 10
+        };
+        let chartInstance = null;
+        let filtroActual = 'todos';
+
+        // --- REGISTRO DEL SERVICE WORKER (PWA) ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registrado', reg))
+                    .catch(err => console.warn('Error al registrar SW', err));
+            });
+        }
+
+        // --- ACTUALIZACIÓN MANUAL ---
+        function forzarActualizacion() {
+            Swal.fire({
+                title: 'Buscando actualización...',
+                text: 'Sincronizando con el servidor.',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for(let registration of registrations) {
+                        registration.update();
+                    }
+                });
+            }
+            
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        }
+
+        // --- UTILIDADES ---
+        const formatMoney = (num) => '$' + Math.round(num).toLocaleString('es-CO');
+        const mesActual = () => new Date().toISOString().slice(0, 7);
+        const hoy = () => new Date().toISOString().split('T')[0];
+        const diasRestantesMes = () => Math.max(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - new Date().getDate(), 1);
+        
+        function saveData() {
+            localStorage.setItem('finzenDataPro', JSON.stringify(data));
+            renderApp();
+        }
+
+        // --- NAVEGACIÓN ---
+        function cambiarVista(id, element) {
+            document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(`view-${id}`).classList.remove('hidden');
+            
+            if (element) {
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                element.classList.add('active');
+            }
+            window.scrollTo(0,0);
+            if (id === 'inicio') renderChart();
+        }
+
+        // --- LÓGICA FINANCIERA ---
+        function calcularInfo() {
+            const mes = mesActual();
+            let ing = 0, gas = 0, gasHoy = 0;
+            
+            data.transacciones.forEach(t => {
+                if (t.fecha.startsWith(mes)) {
+                    if (t.tipo === 'ingreso') ing += t.monto;
+                    else {
+                        gas += t.monto;
+                        if (t.fecha === hoy()) gasHoy += t.monto;
+                    }
+                }
+            });
+
+            const ahorro = ing * (data.ahorroPct / 100);
+            const deudas = data.prestamos.filter(p => p.tipo === 'debo').reduce((acc, p) => acc + (p.monto - p.pagado), 0);
+            const disponible = ing - gas - ahorro - deudas;
+            const dias = diasRestantesMes();
+            const limiteDiario = Math.max(disponible / dias, 0);
+
+            return { ing, gas, gasHoy, ahorro, deudas, disponible, limiteDiario, dias };
+        }
+
+        function renderApp() {
+            const info = calcularInfo();
+            
+            document.getElementById('lblLimiteDiario').innerText = formatMoney(info.limiteDiario);
+            document.getElementById('resumenIngresos').innerText = formatMoney(info.ing);
+            document.getElementById('resumenGastos').innerText = formatMoney(info.gas);
+            
+            const pctGastado = info.limiteDiario > 0 ? (info.gasHoy / info.limiteDiario) * 100 : 100;
+            const barra = document.getElementById('barraProgreso');
+            barra.style.width = Math.min(pctGastado, 100) + '%';
+            barra.className = pctGastado > 100 ? 'bg-rose-500 h-2 rounded-full transition-all' : 'bg-white h-2 rounded-full transition-all';
+
+            const lblEstado = document.getElementById('lblEstadoLimite');
+            if (info.gasHoy >= info.limiteDiario && info.limiteDiario > 0) {
+                lblEstado.innerHTML = `⚠️ Superaste el límite hoy (Gastaste: ${formatMoney(info.gasHoy)})`;
+            } else {
+                lblEstado.innerHTML = `✅ Te quedan ${formatMoney(info.limiteDiario - info.gasHoy)} para hoy`;
+            }
+
+            document.getElementById('inputAhorroPct').value = data.ahorroPct;
+            document.getElementById('lblPct').innerText = data.ahorroPct + '%';
+
+            renderHistorial();
+            renderMetas();
+            renderPrestamos();
+            if(!document.getElementById('view-inicio').classList.contains('hidden')) renderChart();
+        }
+
+        // --- HISTORIAL ---
+        function filtrarHistorial(tipo) {
+            filtroActual = tipo;
+            document.querySelectorAll('.filtro-btn').forEach(b => {
+                b.classList.remove('bg-brand', 'text-white');
+                b.classList.add('glass', 'text-gray-300');
+            });
+            event.currentTarget.classList.remove('glass', 'text-gray-300');
+            event.currentTarget.classList.add('bg-brand', 'text-white');
+            renderHistorial();
+        }
+
+        function renderHistorial() {
+            const cont = document.getElementById('listaHistorial');
+            let txs = [...data.transacciones].sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+            if (filtroActual !== 'todos') txs = txs.filter(t => t.tipo === filtroActual);
+
+            if (txs.length === 0) {
+                cont.innerHTML = '<p class="text-center text-sm text-gray-500 py-8">No hay movimientos aún.</p>';
+                return;
+            }
+
+            const iconos = { "Alimentación": "fa-utensils", "Transporte": "fa-car", "Vivienda": "fa-home", "Servicios": "fa-bolt", "Salud": "fa-heartbeat", "Entretenimiento": "fa-gamepad", "Educación": "fa-book", "Ropa": "fa-tshirt", "Restaurantes": "fa-pizza-slice", "Suscripciones": "fa-tv", "Ahorro": "fa-piggy-bank", "Otros": "fa-box", "Salario": "fa-money-bill-wave", "Freelance": "fa-laptop", "Inversiones": "fa-chart-line" };
+
+            cont.innerHTML = txs.map(t => {
+                const esIngreso = t.tipo === 'ingreso';
+                const icono = iconos[t.categoria] || "fa-tag";
+                return `
+                    <div class="glass rounded-xl p-3 flex justify-between items-center mb-2">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center ${esIngreso ? 'bg-emerald-900/50 text-emerald-400' : 'bg-rose-900/50 text-rose-400'}">
+                                <i class="fas ${icono}"></i>
+                            </div>
+                            <div>
+                                <p class="font-bold text-sm text-gray-100">${t.categoria}</p>
+                                <p class="text-xs text-gray-400">${t.fecha} ${t.descripcion ? '• '+t.descripcion : ''}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold ${esIngreso ? 'text-emerald-400' : 'text-gray-200'}">${esIngreso ? '+' : '-'}${formatMoney(t.monto)}</p>
+                            <button onclick="borrarTransaccion(${t.id})" class="text-xs text-red-400 hover:text-red-300 mt-1"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function borrarTransaccion(id) {
+            Swal.fire({ title: '¿Borrar movimiento?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#475569', confirmButtonText: 'Sí', cancelButtonText: 'No' }).then((result) => {
+                if (result.isConfirmed) {
+                    data.transacciones = data.transacciones.filter(t => t.id !== id);
+                    saveData();
+                }
+            });
+        }
+
+        // --- GRÁFICO ---
+        function renderChart() {
+            const cats = {};
+            data.transacciones.forEach(t => {
+                if (t.tipo === 'gasto' && t.fecha.startsWith(mesActual())) cats[t.categoria] = (cats[t.categoria] || 0) + t.monto;
+            });
+
+            const ctx = document.getElementById('chartGastos').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            
+            const noData = document.getElementById('noDataChart');
+            if (Object.keys(cats).length === 0) {
+                noData.classList.remove('hidden');
+                document.getElementById('chartGastos').style.display = 'none';
+                return;
+            }
+            noData.classList.add('hidden');
+            document.getElementById('chartGastos').style.display = 'block';
+
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: Object.keys(cats), datasets: [{ data: Object.values(cats), backgroundColor: ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#64748b'], borderWidth: 0, hoverOffset: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'right', labels: { color: '#cbd5e1', boxWidth: 10, font: {size: 11, family: 'Inter'} } } } }
+            });
+        }
+
+        // --- MODALES ---
+        const htmlTransaccion = `
+            <div class="flex flex-col gap-3 text-left">
+                <div class="flex gap-2">
+                    <button id="btnSwalGasto" onclick="setSwalTipo('gasto')" class="flex-1 py-2 rounded-lg font-bold text-white bg-rose-600">Gasto</button>
+                    <button id="btnSwalIngreso" onclick="setSwalTipo('ingreso')" class="flex-1 py-2 rounded-lg font-bold bg-slate-700 text-gray-300">Ingreso</button>
+                </div>
+                <input id="swalMonto" type="number" class="swal2-input !m-0 !w-full" placeholder="Monto $" required>
+                <select id="swalCat" class="swal2-select !m-0 !w-full !max-w-full"></select>
+                <input id="swalDesc" type="text" class="swal2-input !m-0 !w-full" placeholder="Descripción (Opcional)">
+            </div>
+        `;
+
+        let swalTipo = 'gasto';
+        const CAT_GASTO = ["Alimentación", "Transporte", "Vivienda", "Servicios", "Salud", "Entretenimiento", "Educación", "Ropa", "Restaurantes", "Suscripciones", "Ahorro", "Otros"];
+        const CAT_INGRESO = ["Salario", "Freelance", "Inversiones", "Regalo", "Otros"];
+
+        function setSwalTipo(tipo) {
+            swalTipo = tipo;
+            const btnG = document.getElementById('btnSwalGasto');
+            const btnI = document.getElementById('btnSwalIngreso');
+            const select = document.getElementById('swalCat');
+            if (tipo === 'gasto') {
+                btnG.className = 'flex-1 py-2 rounded-lg font-bold text-white bg-rose-600';
+                btnI.className = 'flex-1 py-2 rounded-lg font-bold bg-slate-700 text-gray-300';
+                select.innerHTML = CAT_GASTO.map(c => `<option value="${c}">${c}</option>`).join('');
+            } else {
+                btnG.className = 'flex-1 py-2 rounded-lg font-bold bg-slate-700 text-gray-300';
+                btnI.className = 'flex-1 py-2 rounded-lg font-bold text-white bg-emerald-600';
+                select.innerHTML = CAT_INGRESO.map(c => `<option value="${c}">${c}</option>`).join('');
+            }
+        }
+
+        function abrirModalTransaccion() {
+            Swal.fire({
+                title: 'Nuevo Movimiento', html: htmlTransaccion,
+                showCancelButton: true, confirmButtonText: 'Guardar', cancelButtonText: 'Cancelar', confirmButtonColor: '#6366f1',
+                didOpen: () => { setSwalTipo('gasto'); },
+                preConfirm: () => {
+                    const monto = document.getElementById('swalMonto').value;
+                    if (!monto || monto <= 0) { Swal.showValidationMessage('Ingresa un monto válido'); return false; }
+                    return { monto: parseFloat(monto), categoria: document.getElementById('swalCat').value, descripcion: document.getElementById('swalDesc').value }
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    data.transacciones.push({ id: data.nextId++, tipo: swalTipo, monto: result.value.monto, categoria: result.value.categoria, descripcion: result.value.descripcion, fecha: hoy() });
+                    saveData();
+                    Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, icon: 'success', title: 'Guardado' });
+                }
+            });
+        }
+
+        function abrirModalMeta() {
+            Swal.fire({
+                title: 'Nueva Meta',
+                html: `<input id="swalNombre" class="swal2-input" placeholder="Ej: Viaje"> <input id="swalObjetivo" type="number" class="swal2-input" placeholder="Monto objetivo $">`,
+                showCancelButton: true, confirmButtonText: 'Crear', confirmButtonColor: '#6366f1',
+                preConfirm: () => {
+                    const n = document.getElementById('swalNombre').value;
+                    const o = document.getElementById('swalObjetivo').value;
+                    if (!n || !o || o <= 0) { Swal.showValidationMessage('Llena todos los campos'); return false; }
+                    return { nombre: n, objetivo: parseFloat(o) };
+                }
+            }).then((res) => {
+                if (res.isConfirmed) { data.metas.push({ nombre: res.value.nombre, objetivo: res.value.objetivo, ahorrado: 0 }); saveData(); }
+            });
+        }
+
+        function abonarMeta(i) {
+            const m = data.metas[i];
+            Swal.fire({
+                title: `Abonar a "${m.nombre}"`, text: `Faltan: ${formatMoney(m.objetivo - m.ahorrado)}`,
+                input: 'number', inputAttributes: { min: 1 },
+                showCancelButton: true, confirmButtonText: 'Abonar', confirmButtonColor: '#10b981',
+                preConfirm: (val) => { if(!val || val <= 0) { Swal.showValidationMessage('Monto inválido'); return false; } return val; }
+            }).then(res => {
+                if(res.isConfirmed) {
+                    m.ahorrado += parseFloat(res.value);
+                    if(m.ahorrado > m.objetivo) m.ahorrado = m.objetivo;
+                    saveData();
+                }
+            });
+        }
+
+        function renderMetas() {
+            const cont = document.getElementById('listaMetas');
+            if (data.metas.length === 0) { cont.innerHTML = '<p class="text-xs text-gray-500 mb-4">No hay metas creadas.</p>'; return; }
+            cont.innerHTML = data.metas.map((m, i) => {
+                const pct = Math.round((m.ahorrado / m.objetivo) * 100);
+                return `
+                    <div class="glass rounded-xl p-4">
+                        <div class="flex justify-between items-center mb-1">
+                            <p class="font-bold text-sm text-gray-100">${m.nombre}</p>
+                            <span class="text-xs font-bold text-brand">${pct}%</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mb-3">${formatMoney(m.ahorrado)} de ${formatMoney(m.objetivo)}</p>
+                        <div class="w-full bg-slate-700 rounded-full h-1.5 mb-3">
+                            <div class="bg-brand h-1.5 rounded-full" style="width: ${pct}%"></div>
+                        </div>
+                        <button onclick="abonarMeta(${i})" class="w-full py-1.5 text-xs font-bold text-brand bg-brand/10 rounded-lg hover:bg-brand/20 transition">+ Abonar</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function abrirModalPrestamo() {
+            Swal.fire({
+                title: 'Nuevo Préstamo',
+                html: `
+                    <select id="swalTipoP" class="swal2-select !w-full !max-w-full">
+                        <option value="prestado">💚 Me deben (Yo presté)</option>
+                        <option value="debo">❤️ Yo debo (Me prestaron)</option>
+                    </select>
+                    <input id="swalPersona" class="swal2-input" placeholder="Nombre">
+                    <input id="swalMontoP" type="number" class="swal2-input" placeholder="Monto $">
+                `,
+                showCancelButton: true, confirmButtonText: 'Guardar', confirmButtonColor: '#6366f1',
+                preConfirm: () => {
+                    const per = document.getElementById('swalPersona').value;
+                    const mon = document.getElementById('swalMontoP').value;
+                    if (!per || !mon || mon <= 0) { Swal.showValidationMessage('Llena todos los campos'); return false; }
+                    return { tipo: document.getElementById('swalTipoP').value, persona: per, monto: parseFloat(mon) };
+                }
+            }).then(res => {
+                if(res.isConfirmed) {
+                    data.prestamos.push({ id: data.nextIdPrestamo++, tipo: res.value.tipo, persona: res.value.persona, monto: res.value.monto, pagado: 0 });
+                    saveData();
+                }
+            });
+        }
+
+        function pagarPrestamo(id) {
+            const p = data.prestamos.find(x => x.id === id);
+            Swal.fire({
+                title: `Abono a ${p.persona}`, text: `Pendiente: ${formatMoney(p.monto - p.pagado)}`,
+                input: 'number', showCancelButton: true, confirmButtonText: 'Abonar', confirmButtonColor: '#6366f1',
+                preConfirm: (val) => { if(!val || val <= 0) { Swal.showValidationMessage('Monto inválido'); return false; } return val; }
+            }).then(res => {
+                if(res.isConfirmed) {
+                    p.pagado += parseFloat(res.value);
+                    if(p.pagado > p.monto) p.pagado = p.monto;
+                    saveData();
+                }
+            });
+        }
+
+        function renderPrestamos() {
+            const cont = document.getElementById('listaPrestamos');
+            if (data.prestamos.length === 0) { cont.innerHTML = '<p class="text-xs text-gray-500">No hay préstamos activos.</p>'; return; }
+            cont.innerHTML = data.prestamos.map(p => {
+                const pend = p.monto - p.pagado;
+                return `
+                    <div class="glass rounded-xl p-4 flex justify-between items-center ${pend === 0 ? 'opacity-50' : ''}">
+                        <div>
+                            <p class="font-bold text-sm text-gray-100">${p.persona}</p>
+                            <p class="text-xs font-semibold ${p.tipo === 'prestado' ? 'text-emerald-400' : 'text-rose-400'}">${p.tipo === 'prestado' ? 'Te debe' : 'Le debes'}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold text-gray-200">${formatMoney(pend)}</p>
+                            ${pend > 0 ? `<button onclick="pagarPrestamo(${p.id})" class="text-[10px] bg-brand text-white px-2 py-1 rounded mt-1 hover:bg-brandDark transition">Abonar</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function guardarAjustes() {
+            data.ahorroPct = parseInt(document.getElementById('inputAhorroPct').value);
+            saveData();
+            Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, icon: 'success', title: 'Ajustes guardados' });
+        }
+
+        function exportarDatos() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", `finzen_backup_${hoy()}.json`);
+            dlAnchorElem.click();
+        }
+
+        function importarDatos() {
+            Swal.fire({
+                title: 'Importar Backup', text: 'Pega el contenido de tu archivo JSON aquí:', input: 'textarea',
+                showCancelButton: true, confirmButtonText: 'Importar',
+                preConfirm: (jsonStr) => {
+                    try { const parsed = JSON.parse(jsonStr); if (!parsed.transacciones) throw new Error("Formato inválido"); return parsed; } 
+                    catch (e) { Swal.showValidationMessage('JSON inválido. Verifica el archivo.'); }
+                }
+            }).then(res => {
+                if(res.isConfirmed) { data = res.value; saveData(); Swal.fire('Importado', 'Datos restaurados', 'success'); }
+            });
+        }
+
+        function borrarTodo() {
+            Swal.fire({ title: '¿Borrar todo?', text: "Se perderán todos tus datos permanentemente.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Sí, borrar' }).then(res => {
+                if(res.isConfirmed) { localStorage.removeItem('finzenDataPro'); location.reload(); }
+            });
+        }
+
+        // Iniciar app
+        renderApp();
+    </script>
+</body>
+</html>
