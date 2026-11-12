@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, ArrowDownRight, ArrowUpRight, Calendar, CreditCard, Tag, Sparkles } from 'lucide-react';
-import { Transaction, TransactionType, PaymentMethod } from '../types/financial';
+import { X, ArrowDownRight, ArrowUpRight, Calendar, CreditCard, Tag, Sparkles, Wallet } from 'lucide-react';
+import { Cuenta, Transaction, TransactionType, PaymentMethod } from '../types/financial';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../utils/categories';
 import { hoy } from '../utils/calculations';
 import { CategoryIcon } from './CategoryIcon';
@@ -13,6 +13,7 @@ interface TransactionModalProps {
   currency?: string;
   limiteDiario?: number;
   gasHoy?: number;
+  cuentas?: Cuenta[];
 }
 
 export const TransactionModal: React.FC<TransactionModalProps> = ({
@@ -22,6 +23,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   currency = 'COP',
   limiteDiario = 0,
   gasHoy = 0,
+  cuentas = [],
 }) => {
   const [tipo, setTipo] = useState<TransactionType>('gasto');
   const [monto, setMonto] = useState<string>('');
@@ -29,6 +31,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [descripcion, setDescripcion] = useState<string>('');
   const [fecha, setFecha] = useState<string>(hoy());
   const [metodoPago, setMetodoPago] = useState<PaymentMethod>('tarjeta');
+  const [cuentaId, setCuentaId] = useState<string>(cuentas[0]?.id || '');
   const [error, setError] = useState<string>('');
 
   if (!isOpen) return null;
@@ -63,6 +66,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       descripcion: descripcion.trim() || undefined,
       fecha,
       metodoPago,
+      cuentaId: cuentaId || undefined,
       hora,
     });
 
@@ -263,6 +267,28 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               </select>
             </div>
           </div>
+
+          {/* Account / Cash selector */}
+          {cuentas.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1">
+                <Wallet className="w-3.5 h-3.5 text-indigo-400" />
+                {tipo === 'gasto' ? 'Descontar de la cuenta / efectivo:' : 'Abonar a la cuenta / efectivo:'}
+              </label>
+              <select
+                value={cuentaId}
+                onChange={(e) => setCuentaId(e.target.value)}
+                className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              >
+                <option value="">(Opcional) Ninguna cuenta específica</option>
+                {cuentas.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre} · Saldo: {formatMoney(c.saldo, currency)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {error && <p className="text-xs font-semibold text-rose-400">{error}</p>}
 

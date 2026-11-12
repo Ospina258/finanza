@@ -233,6 +233,104 @@ export const GoalsLoansView: React.FC<GoalsLoansViewProps> = ({
       {/* SECTION: PRÉSTAMOS */}
       {activeSection === 'prestamos' && (
         <div className="space-y-6">
+          {/* Spotlight: Plata que presté y a quién */}
+          <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-emerald-950/40 via-slate-900 to-teal-950/30 border border-emerald-500/30 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                    <ArrowDownLeft className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-base font-bold text-white">Plata que prestaste y a quién</h3>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  Control exacto de dinero prestado a amigos, familiares y conocidos.
+                </p>
+              </div>
+
+              <div className="text-left sm:text-right">
+                <span className="text-[11px] font-semibold text-slate-400 block">Total Pendiente por Cobrar</span>
+                <span className="text-2xl font-extrabold text-emerald-400 tabular-nums">
+                  {formatMoney(totalMeDeben, currency)}
+                </span>
+              </div>
+            </div>
+
+            {/* Breakdown cards: Prestado vs Recuperado */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800">
+                <span className="text-[10px] text-slate-400 font-semibold uppercase block">Total Prestado Original</span>
+                <span className="text-sm sm:text-base font-extrabold text-white tabular-nums">
+                  {formatMoney(prestamos.filter((p) => p.tipo === 'prestado').reduce((acc, p) => acc + p.monto, 0), currency)}
+                </span>
+              </div>
+              <div className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800">
+                <span className="text-[10px] text-slate-400 font-semibold uppercase block">Ya te han devuelto</span>
+                <span className="text-sm sm:text-base font-extrabold text-emerald-400 tabular-nums">
+                  {formatMoney(prestamos.filter((p) => p.tipo === 'prestado').reduce((acc, p) => acc + p.pagado, 0), currency)}
+                </span>
+              </div>
+            </div>
+
+            {/* List of Who Owes You */}
+            <div className="space-y-2 pt-2">
+              <span className="text-xs font-bold text-slate-300 block">¿A quién le prestaste dinero?</span>
+              {prestamos.filter((p) => p.tipo === 'prestado').length === 0 ? (
+                <p className="text-xs text-slate-500 py-2">No has prestado dinero a nadie aún.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {prestamos
+                    .filter((p) => p.tipo === 'prestado')
+                    .map((p) => {
+                      const pend = Math.max(p.monto - p.pagado, 0);
+                      const isPaid = pend === 0;
+
+                      return (
+                        <div
+                          key={p.id}
+                          className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
+                            isPaid
+                              ? 'bg-slate-950/30 border-slate-800/50 opacity-60'
+                              : 'bg-slate-950/80 border-slate-800 hover:border-emerald-500/40'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-full bg-emerald-600/20 text-emerald-300 font-bold text-xs flex items-center justify-center shrink-0">
+                              {p.persona.slice(0, 1).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-white truncate">{p.persona}</p>
+                              <p className="text-[10px] text-slate-400 truncate">
+                                {p.descripcion || 'Préstamo personal'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span
+                              className={`text-xs font-extrabold tabular-nums block ${
+                                isPaid ? 'text-slate-400 line-through' : 'text-emerald-400'
+                              }`}
+                            >
+                              {formatMoney(pend, currency)}
+                            </span>
+                            {!isPaid && (
+                              <button
+                                onClick={() => onOpenLoanPayment(p)}
+                                className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                              >
+                                + Abonar pago
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Dual Balance Cards: Me Deben vs Yo Debo */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">

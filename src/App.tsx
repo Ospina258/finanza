@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { FinzenData, Meta, Prestamo, Transaction } from './types/financial';
+import { Cuenta, FinzenData, Meta, Prestamo, Transaction } from './types/financial';
 import { getInitialData } from './utils/demoData';
 import { calcularInfo } from './utils/calculations';
 import { Header } from './components/Header';
@@ -18,6 +18,7 @@ import { TransactionModal } from './components/TransactionModal';
 import { GoalModal } from './components/GoalModal';
 import { LoanModal } from './components/LoanModal';
 import { BackupModal } from './components/BackupModal';
+import { AccountModal } from './components/AccountModal';
 
 const STORAGE_KEY = 'finzenDataPro';
 
@@ -29,6 +30,7 @@ export default function App() {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed && Array.isArray(parsed.transacciones)) {
+          const defaultAccounts = getInitialData().cuentas || [];
           return {
             userName: parsed.userName || 'David',
             moneda: parsed.moneda || 'COP',
@@ -38,6 +40,7 @@ export default function App() {
             transacciones: parsed.transacciones,
             metas: parsed.metas || [],
             prestamos: parsed.prestamos || [],
+            cuentas: Array.isArray(parsed.cuentas) && parsed.cuentas.length > 0 ? parsed.cuentas : defaultAccounts,
           };
         }
       }
@@ -56,6 +59,7 @@ export default function App() {
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
 
   // Active items for deposit/payment modals
   const [activeGoalDeposit, setActiveGoalDeposit] = useState<{ goal: Meta; index: number } | null>(null);
@@ -88,10 +92,27 @@ export default function App() {
       id: data.nextId,
       ...newTxData,
     };
+
+    // If linked to an account, adjust balance
+    let updatedCuentas = data.cuentas ? [...data.cuentas] : undefined;
+    if (newTx.cuentaId && updatedCuentas) {
+      updatedCuentas = updatedCuentas.map((c) => {
+        if (c.id === newTx.cuentaId) {
+          const delta = newTx.tipo === 'gasto' ? -newTx.monto : newTx.monto;
+          return {
+            ...c,
+            saldo: Math.max(c.saldo + delta, 0),
+          };
+        }
+        return c;
+      });
+    }
+
     const updated: FinzenData = {
       ...data,
       nextId: data.nextId + 1,
       transacciones: [newTx, ...data.transacciones],
+      cuentas: updatedCuentas,
     };
     updateDataAndStore(updated);
     showToast(newTx.tipo === 'gasto' ? 'Gasto registrado' : 'Ingreso registrado');
@@ -184,6 +205,50 @@ export default function App() {
     };
     updateDataAndStore(updated);
     showToast('Préstamo eliminado');
+  };
+
+  // Actions: Accounts & Cash
+  const handleSaveAccount = (accountData: Omit<Cuenta, 'id'>) => {
+    const newAccount: Cuenta = {
+      id: `cta_${Date.now()}`,
+      ...accountData,
+    };
+    const updated: FinzenData = {
+      ...data,
+      cuentas: [...(data.cuentas || []), newAccount],
+    };
+    updateDataAndStore(updated);
+    showToast(`Cuenta "${newAccount.nombre}" creada`);
+  };
+
+  const handleUpdateAccountBalance = (accountId: string, newBalance: number) => {
+    const updatedCuentas = (data.cuentas || []).map((c) =>
+      c.id === accountId ? { ...c, saldo: newBalance } : c
+    );
+    const updated: FinzenData = {
+      ...data,
+      cuentas: updatedCuentas,
+    };
+    updateDataAndStore(updated);
+    showToast('Saldo actualizado');
+  };
+
+  const handleTransfer = (fromId: string, toId: string, amount: number) => {
+    const updatedCuentas = (data.cuentas || []).map((c) => {
+      if (c.id === fromId) {
+        return { ...c, saldo: Math.max(c.saldo - amount, 0) };
+      }
+      if (c.id === toId) {
+        return { ...c, saldo: c.saldo + amount };
+      }
+      return c;
+    });
+    const updated: FinzenData = {
+      ...data,
+      cuentas: updatedCuentas,
+    };
+    updateDataAndStore(updated);
+    showToast('Transferencia realizada con éxito');
   };
 
   // Actions: Settings
@@ -290,6 +355,7 @@ export default function App() {
                 setActiveGoalDeposit(null);
                 setIsGoalModalOpen(true);
               }}
+              onOpenAccountModal={() => setIsAccountModalOpen(true)}
             />
           )}
 
@@ -355,6 +421,7 @@ export default function App() {
         currency={data.moneda}
         limiteDiario={summary.limiteDiario}
         gasHoy={summary.gasHoy}
+        cuentas={data.cuentas || []}
       />
 
       <GoalModal
@@ -388,6 +455,16 @@ export default function App() {
         onRestoreData={handleRestoreData}
         onResetAll={handleResetAll}
         onLoadDemo={handleLoadDemo}
+      />
+
+      <AccountModal
+        isOpen={isAccountModalOpen}
+        onClose={() => setIsAccountModalOpen(false)}
+        cuentas={data.cuentas || []}
+        onSaveAccount={handleSaveAccount}
+        onUpdateAccountBalance={handleUpdateAccountBalance}
+        onTransfer={handleTransfer}
+        currency={data.moneda}
       />
     </div>
   );

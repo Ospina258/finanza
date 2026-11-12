@@ -36,6 +36,17 @@ export interface FinancialSummary {
   ahorro: number;
   deudas: number;
   prestamosPorCobrar: number;
+  totalPrestadoOriginal: number;
+  totalPrestadoRecuperado: number;
+  totalEnCuentas: number;
+  personasQueDeben: Array<{
+    id: number;
+    persona: string;
+    pendiente: number;
+    monto: number;
+    pagado: number;
+    descripcion?: string;
+  }>;
   disponible: number;
   limiteDiario: number;
   disponibleHoy: number;
@@ -88,15 +99,43 @@ export const calcularInfo = (data: FinzenData): FinancialSummary => {
   const prestamos = data.prestamos || [];
   let deudas = 0;
   let prestamosPorCobrar = 0;
+  let totalPrestadoOriginal = 0;
+  let totalPrestadoRecuperado = 0;
+  const personasQueDeben: Array<{
+    id: number;
+    persona: string;
+    pendiente: number;
+    monto: number;
+    pagado: number;
+    descripcion?: string;
+  }> = [];
 
   prestamos.forEach((p) => {
-    const pend = Math.max((Number(p.monto) || 0) - (Number(p.pagado) || 0), 0);
+    const monto = Number(p.monto) || 0;
+    const pagado = Number(p.pagado) || 0;
+    const pend = Math.max(monto - pagado, 0);
     if (p.tipo === 'debo') {
       deudas += pend;
     } else {
       prestamosPorCobrar += pend;
+      totalPrestadoOriginal += monto;
+      totalPrestadoRecuperado += pagado;
+      if (pend > 0) {
+        personasQueDeben.push({
+          id: p.id,
+          persona: p.persona,
+          pendiente: pend,
+          monto,
+          pagado,
+          descripcion: p.descripcion,
+        });
+      }
     }
   });
+
+  // Calculate total across all accounts / wallets
+  const cuentas = data.cuentas || [];
+  const totalEnCuentas = cuentas.reduce((acc, c) => acc + (Number(c.saldo) || 0), 0);
 
   const disponible = Math.max(ing - gas - ahorro - deudas, 0);
   const dias = diasRestantesMes();
@@ -172,6 +211,10 @@ export const calcularInfo = (data: FinzenData): FinancialSummary => {
     ahorro,
     deudas,
     prestamosPorCobrar,
+    totalPrestadoOriginal,
+    totalPrestadoRecuperado,
+    totalEnCuentas,
+    personasQueDeben,
     disponible,
     limiteDiario,
     disponibleHoy,

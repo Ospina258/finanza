@@ -15,6 +15,7 @@ import { FinzenData, Meta, Prestamo, Transaction } from '../types/financial';
 import { FinancialSummary } from '../utils/calculations';
 import { formatMoney, formatLocalDate } from '../utils/formatters';
 import { DailyLimitCard } from '../components/DailyLimitCard';
+import { AccountsStrip } from '../components/AccountsStrip';
 import { ExpenseChart } from '../components/ExpenseChart';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { getCategoryConfig } from '../utils/categories';
@@ -27,6 +28,7 @@ interface DashboardViewProps {
   onOpenLoanPayment: (loan: Prestamo) => void;
   onNavigateTab: (tab: string) => void;
   onOpenGoalModal: () => void;
+  onOpenAccountModal: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -37,6 +39,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenLoanPayment,
   onNavigateTab,
   onOpenGoalModal,
+  onOpenAccountModal,
 }) => {
   const currency = data.moneda || 'COP';
 
@@ -59,6 +62,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         summary={summary}
         currency={currency}
         onOpenQuickAdd={onOpenNewTransaction}
+      />
+
+      {/* Cuentas & Efectivo Strip */}
+      <AccountsStrip
+        cuentas={data.cuentas || []}
+        totalEnCuentas={summary.totalEnCuentas}
+        onOpenAccountModal={onOpenAccountModal}
+        currency={currency}
       />
 
       {/* KPI Cards Grid (4 Columns on Desktop, 2 on Mobile) */}
@@ -265,6 +276,80 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       >
                         + Abonar a meta
                       </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Spotlight: Plata que prestaste y a quién */}
+          <div className="p-5 sm:p-6 rounded-3xl bg-slate-900/80 border border-slate-800/80">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Handshake className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-base font-bold text-white">Plata que Prestaste</h3>
+              </div>
+              <button
+                onClick={() => onNavigateTab('metas')}
+                className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-0.5 cursor-pointer"
+              >
+                <span>Ver todas</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="flex items-baseline justify-between mb-3 p-3 rounded-2xl bg-emerald-950/30 border border-emerald-500/20">
+              <div>
+                <span className="text-[10px] uppercase font-semibold text-emerald-300 block">Total por cobrar</span>
+                <span className="text-lg font-extrabold text-white tabular-nums">
+                  {formatMoney(summary.prestamosPorCobrar, currency)}
+                </span>
+              </div>
+              <span className="text-[11px] text-emerald-400 font-medium">
+                {summary.personasQueDeben.length} {summary.personasQueDeben.length === 1 ? 'persona' : 'personas'}
+              </span>
+            </div>
+
+            {summary.personasQueDeben.length === 0 ? (
+              <p className="text-center py-4 text-xs text-slate-500">
+                No tienes préstamos pendientes de cobro.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {summary.personasQueDeben.slice(0, 3).map((item) => {
+                  const loanObj = data.prestamos?.find((p) => p.id === item.id);
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/70 flex items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-300 font-bold text-xs flex items-center justify-center shrink-0">
+                          {item.persona.slice(0, 1).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-white truncate">{item.persona}</p>
+                          <p className="text-[10px] text-slate-400 truncate">
+                            Prestado: {formatMoney(item.monto, currency)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-extrabold text-emerald-400 tabular-nums block">
+                          {formatMoney(item.pendiente, currency)}
+                        </span>
+                        {loanObj && (
+                          <button
+                            onClick={() => onOpenLoanPayment(loanObj)}
+                            className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                          >
+                            + Abonar
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

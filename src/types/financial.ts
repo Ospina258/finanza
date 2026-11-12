@@ -2,6 +2,17 @@ export type TransactionType = 'gasto' | 'ingreso';
 
 export type PaymentMethod = 'efectivo' | 'tarjeta' | 'transferencia';
 
+export type TipoCuenta = 'banco' | 'billetera' | 'efectivo' | 'ahorros';
+
+export interface Cuenta {
+  id: string;
+  nombre: string;
+  tipo: TipoCuenta;
+  saldo: number;
+  color?: string;
+  numeroOculto?: string; // ej: "*4589"
+}
+
 export interface Transaction {
   id: number;
   tipo: TransactionType;
@@ -10,6 +21,7 @@ export interface Transaction {
   descripcion?: string;
   fecha: string; // YYYY-MM-DD
   metodoPago?: PaymentMethod;
+  cuentaId?: string; // ID de la cuenta que pagó o recibió el dinero
   hora?: string; // HH:mm
 }
 
@@ -39,6 +51,7 @@ export interface FinzenData {
   transacciones: Transaction[];
   metas: Meta[];
   prestamos: Prestamo[];
+  cuentas?: Cuenta[];
   nextId: number;
   nextIdPrestamo: number;
   ahorroPct: number;

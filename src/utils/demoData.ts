@@ -24,6 +24,39 @@ export const getInitialData = (): FinzenData => {
     ahorroPct: 15,
     nextId: 10,
     nextIdPrestamo: 4,
+    cuentas: [
+      {
+        id: 'cta_bancolombia',
+        nombre: 'Bancolombia Ahorros',
+        tipo: 'banco',
+        saldo: 3200000,
+        color: '#f59e0b',
+        numeroOculto: '*7821',
+      },
+      {
+        id: 'cta_nequi',
+        nombre: 'Nequi',
+        tipo: 'billetera',
+        saldo: 480000,
+        color: '#a855f7',
+        numeroOculto: '*3102',
+      },
+      {
+        id: 'cta_efectivo',
+        nombre: 'Efectivo en Mano',
+        tipo: 'efectivo',
+        saldo: 230000,
+        color: '#10b981',
+      },
+      {
+        id: 'cta_daviplata',
+        nombre: 'Daviplata',
+        tipo: 'billetera',
+        saldo: 110000,
+        color: '#ef4444',
+        numeroOculto: '*9041',
+      },
+    ],
     transacciones: [
       {
         id: 1,
@@ -33,6 +66,7 @@ export const getInitialData = (): FinzenData => {
         descripcion: 'Nómina quincenal y bonificación',
         fecha: d1,
         metodoPago: 'transferencia',
+        cuentaId: 'cta_bancolombia',
         hora: '09:00',
       },
       {
@@ -43,6 +77,7 @@ export const getInitialData = (): FinzenData => {
         descripcion: 'Diseño UI App Móvil',
         fecha: d5,
         metodoPago: 'transferencia',
+        cuentaId: 'cta_bancolombia',
         hora: '15:30',
       },
       {
@@ -53,6 +88,7 @@ export const getInitialData = (): FinzenData => {
         descripcion: 'Arriendo y administración',
         fecha: d3,
         metodoPago: 'transferencia',
+        cuentaId: 'cta_bancolombia',
         hora: '11:00',
       },
       {
@@ -63,6 +99,7 @@ export const getInitialData = (): FinzenData => {
         descripcion: 'Mercado quincenal Éxito',
         fecha: d5,
         metodoPago: 'tarjeta',
+        cuentaId: 'cta_bancolombia',
         hora: '17:20',
       },
       {
@@ -73,6 +110,7 @@ export const getInitialData = (): FinzenData => {
         descripcion: 'Energía, agua y fibra óptica',
         fecha: d8,
         metodoPago: 'transferencia',
+        cuentaId: 'cta_bancolombia',
         hora: '14:00',
       },
       {
@@ -83,6 +121,7 @@ export const getInitialData = (): FinzenData => {
         descripcion: 'Spotify Familiar + iCloud',
         fecha: d8,
         metodoPago: 'tarjeta',
+        cuentaId: 'cta_nequi',
         hora: '08:30',
       },
       {
@@ -93,6 +132,7 @@ export const getInitialData = (): FinzenData => {
         descripcion: 'Cena con amigos',
         fecha: yesterdayStr,
         metodoPago: 'tarjeta',
+        cuentaId: 'cta_nequi',
         hora: '21:15',
       },
       {
@@ -103,6 +143,7 @@ export const getInitialData = (): FinzenData => {
         descripcion: 'Uber a reunión',
         fecha: todayStr,
         metodoPago: 'tarjeta',
+        cuentaId: 'cta_nequi',
         hora: '10:45',
       },
       {
@@ -113,6 +154,7 @@ export const getInitialData = (): FinzenData => {
         descripcion: 'Almuerzo ejecutivo',
         fecha: todayStr,
         metodoPago: 'efectivo',
+        cuentaId: 'cta_efectivo',
         hora: '13:10',
       },
     ],
@@ -163,9 +205,18 @@ export const getInitialData = (): FinzenData => {
         tipo: 'prestado',
         persona: 'Andrea Gomez',
         monto: 120000,
-        pagado: 120000,
+        pagado: 40000,
         fecha: d1,
         descripcion: 'Entrada concierto',
+      },
+      {
+        id: 4,
+        tipo: 'prestado',
+        persona: 'Juan Pablo Restrepo',
+        monto: 200000,
+        pagado: 0,
+        fecha: d8,
+        descripcion: 'Gasolina viaje',
       },
     ],
   };

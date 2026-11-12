@@ -106,6 +106,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>Gastado: {formatMoney(summary.gasHoy, currency)}</span>
             <span>{summary.dias}d restantes</span>
           </div>
+
+          {/* Cuentas y Préstamos Quick Summary */}
+          <div className="pt-2 mt-2 border-t border-slate-800/70 space-y-1.5">
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="text-slate-400">En cuentas / efectivo:</span>
+              <span className="font-bold text-white tabular-nums">{formatMoney(summary.totalEnCuentas, currency)}</span>
+            </div>
+            {summary.prestamosPorCobrar > 0 && (
+              <div className="flex justify-between items-center text-[11px]">
+                <span className="text-slate-400">Te deben por cobrar:</span>
+                <span className="font-bold text-emerald-400 tabular-nums">{formatMoney(summary.prestamosPorCobrar, currency)}</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
